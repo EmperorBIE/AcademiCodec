@@ -6,6 +6,7 @@ import torch.nn as nn
 from academicodec.modules.seanet import SEANetDecoder
 from academicodec.modules.seanet import SEANetEncoder
 from academicodec.quantization import ResidualVectorQuantizer
+from academicodec.quantization import SelfResidualVectorQuantizer
 
 
 # Generator
@@ -27,7 +28,9 @@ class SoundStream(nn.Module):
         self.frame_rate = math.ceil(sample_rate / np.prod(ratios))  # 75
         self.bits_per_codebook = int(math.log2(bins))
         self.target_bandwidths = target_bandwidths
-        self.quantizer = ResidualVectorQuantizer(
+        # self.quantizer = ResidualVectorQuantizer(
+        #     dimension=D, n_q=n_q, bins=bins)
+        self.quantizer = SelfResidualVectorQuantizer(
             dimension=D, n_q=n_q, bins=bins)
         self.decoder = SEANetDecoder(
             n_filters=n_filters, dimension=D, ratios=ratios)

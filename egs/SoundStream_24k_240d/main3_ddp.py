@@ -3,13 +3,16 @@ import argparse
 import itertools
 import os
 import time
+import random
 
 import torch
 import torch.distributed as dist
+import torch.nn.functional as F
 from academicodec.models.encodec.distributed.launch import launch
 from academicodec.models.encodec.msstftd import MultiScaleSTFTDiscriminator
 from academicodec.models.encodec.net3 import SoundStream
 from academicodec.models.soundstream.dataset import NSynthDataset
+from academicodec.models.soundstream.dataset import JsonDataset
 from academicodec.models.soundstream.loss import criterion_d
 from academicodec.models.soundstream.loss import criterion_g
 from academicodec.models.soundstream.loss import loss_dis
@@ -171,6 +174,21 @@ def get_args():
     os.makedirs(args.PATH, exist_ok=True)
     return args
 
+def collate_fn(batch):
+    length=48000
+    def process_element(elem, length):
+        if elem.shape[-1] > length:
+            start_index = random.randint(0, elem.shape[-1] - length)
+            return elem[:, start_index:start_index + length]
+        else:
+            padding = (0, length - elem.shape[-1])
+            return F.pad(elem, padding, 'constant', 0)
+    
+    processed_batch = [process_element(elem, length) for elem in batch]
+    padded_batch = torch.stack(processed_batch, dim=0)
+    lengths = torch.full((len(batch),), length, dtype=torch.long)
+    
+    return padded_batch, lengths
 
 def get_input(x):
     x = x.to(memory_format=torch.contiguous_format)
@@ -240,8 +258,10 @@ def main_worker(local_rank, args):
                   device_ids=[args.local_rank],
                   find_unused_parameters=True)
 
-    train_dataset = NSynthDataset(audio_dir=args.train_data_path)
-    valid_dataset = NSynthDataset(audio_dir=args.valid_data_path)
+    # train_dataset = NSynthDataset(audio_dir=args.train_data_path)
+    # valid_dataset = NSynthDataset(audio_dir=args.valid_data_path)
+    train_dataset = JsonDataset(audio_dir=args.train_data_path)
+    valid_dataset = JsonDataset(audio_dir=args.valid_data_path)
     args.sr = train_dataset.sr
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(

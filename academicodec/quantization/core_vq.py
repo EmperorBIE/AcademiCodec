@@ -368,3 +368,54 @@ class ResidualVectorQuantization(nn.Module):
             quantized = layer.decode(indices)
             quantized_out = quantized_out + quantized
         return quantized_out
+    
+
+class SelfResidualVectorQuantization(nn.Module):
+
+    def __init__(self, *, num_quantizers=1, **kwargs):
+        super().__init__()
+        self.layer = VectorQuantization(**kwargs)
+        self.num_quantizers = num_quantizers
+
+    def forward(self, x, n_q: tp.Optional[int]=None):
+        quantized_out = 0.0
+        residual = x
+
+        all_losses = []
+        all_indices = []
+
+        n_q = n_q or self.num_quantizers
+
+        for _ in range(n_q):
+            quantized, indices, loss = self.layer(residual)
+            residual = residual - quantized
+            quantized_out = quantized_out + quantized
+
+            all_indices.append(indices)
+            all_losses.append(loss)
+
+        out_losses, out_indices = map(torch.stack, (all_losses, all_indices))
+        return quantized_out, out_indices, out_losses
+
+    def encode(self,
+               x: torch.Tensor,
+               n_q: tp.Optional[int]=None,
+               st: tp.Optional[int]=None) -> torch.Tensor:
+        residual = x
+        all_indices = []
+        n_q = n_q or self.num_quantizers
+        st = st or 0
+        for _ in range(st, n_q):
+            indices = self.layer.encode(residual)
+            quantized = self.layer.decode(indices)
+            residual = residual - quantized
+            all_indices.append(indices)
+        out_indices = torch.stack(all_indices)
+        return out_indices
+
+    def decode(self, q_indices: torch.Tensor) -> torch.Tensor:
+        quantized_out = torch.tensor(0.0, device=q_indices.device)
+        for i, indices in enumerate(q_indices):
+            quantized = self.layer.decode(indices)
+            quantized_out = quantized_out + quantized
+        return quantized_out
