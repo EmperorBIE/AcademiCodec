@@ -6,6 +6,7 @@ import time
 import torch
 import torch.distributed as dist
 from academicodec.models.encodec.dataset import NSynthDataset
+from academicodec.models.encodec.dataset import JsonDataset
 from academicodec.models.encodec.loss import criterion_d
 from academicodec.models.encodec.loss import criterion_g
 from academicodec.models.encodec.loss import loss_dis
@@ -214,8 +215,10 @@ def main_worker(local_rank, args):
     # 这里之后需要看下 sr 的问题，如果输入 wav 的 sr 和 `--sr` 不一致则会有问题
     logger.log_info('Training set')
     train_dataset = NSynthDataset(audio_dir=args.train_data_path)
+    train_dataset = JsonDataset(json_dir=args.train_data_path)
     logger.log_info('valid set')
     valid_dataset = NSynthDataset(audio_dir=args.valid_data_path)
+    valid_dataset = JsonDataset(json_dir=args.valid_data_path)
     args.sr = train_dataset.sr
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(
