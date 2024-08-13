@@ -2,6 +2,12 @@ import argparse
 import itertools
 import os
 import time
+import sys
+sys.path.append('/home3/hexin/AcademiCodec')
+sys.path.append('/home3/hexin/AcademiCodec/academicodec')
+sys.path.append('/home3/hexin/AcademiCodec/academicodec/models')
+sys.path.append('/home3/hexin/AcademiCodec/academicodec/modules')
+sys.path.append('/home3/hexin/AcademiCodec/academicodec/quantization')
 
 import torch
 import torch.distributed as dist
@@ -191,7 +197,8 @@ def main_worker(local_rank, args):
         mpd = torch.nn.SyncBatchNorm.convert_sync_batchnorm(mpd)
 
     # torch.distributed.barrier()
-    args.device = torch.device('cuda', args.local_rank)
+    # args.device = torch.device('cuda', args.local_rank)
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     soundstream.to(args.device)
     stft_disc.to(args.device)
     msd.to(args.device)
@@ -271,7 +278,10 @@ def train(args, soundstream, stft_disc, msd, mpd, train_loader, valid_loader,
     best_val_loss = float("inf")
     best_val_epoch = -1
     global_step = 0
+
+    
     for epoch in range(args.st_epoch, args.N_EPOCHS + 1):
+        logger.log_info(f"epoch: {epoch}")
         soundstream.train()
         stft_disc.train()
         msd.train()
@@ -290,12 +300,20 @@ def train(args, soundstream, stft_disc, msd, mpd, train_loader, valid_loader,
             k_iter += 1
             global_step += 1  # record the global step
             for optimizer_idx in [0, 1]:  # we have two optimizer
+                logger.log_info(f"optimizer:{optimizer_idx}")
+                time0=time.time()
                 x_wav = get_input(x)
+                time1=time.time()
+                logger.log_info(f"time 1-0 = {time1-time0} s")
                 G_x, commit_loss, last_layer = soundstream(x_wav)
+                time2=time.time()
+                logger.log_info(f"time 2-1 = {time2-time1} s")
                 if optimizer_idx == 0:
                     # update generator
                     y_disc_r, fmap_r = stft_disc(x_wav.contiguous())
                     y_disc_gen, fmap_gen = stft_disc(G_x.contiguous())
+                    time3=time.time()
+                    logger.log_info(f"time 3-2 = {time3-time2} s")
                     y_df_hat_r, y_df_hat_g, fmap_f_r, fmap_f_g = mpd(
                         x_wav.contiguous(), G_x.contiguous())
                     y_ds_hat_r, y_ds_hat_g, fmap_s_r, fmap_s_g = msd(
@@ -325,14 +343,20 @@ def train(args, soundstream, stft_disc, msd, mpd, train_loader, valid_loader,
                     train_adv_g_loss += adv_g_loss.item()
                     train_feat_loss += feat_loss.item()
                     train_rec_loss += rec_loss.item()
+                    time4=time.time()
+                    logger.log_info(f"time 4-3 = {time4-time3} s")
                     optimizer_g.zero_grad()
                     total_loss_g.backward()
                     optimizer_g.step()
+                    time5=time.time()
+                    logger.log_info(f"time 5-4 = {time5-time4} s")
                 else:
                     # update discriminator
                     y_disc_r_det, fmap_r_det = stft_disc(x.detach())
                     y_disc_gen_det, fmap_gen_det = stft_disc(G_x.detach())
-
+                    
+                    time3=time.time()
+                    logger.log_info(f"time 3-2 = {time3-time2} s")
                     # MPD
                     y_df_hat_r, y_df_hat_g, fmap_f_r, fmap_f_g = mpd(
                         x.detach(), G_x.detach())
@@ -345,9 +369,14 @@ def train(args, soundstream, stft_disc, msd, mpd, train_loader, valid_loader,
                         y_df_hat_r, y_df_hat_g, fmap_f_r, fmap_f_g, y_ds_hat_r,
                         y_ds_hat_g, fmap_s_r, fmap_s_g, global_step, args)
                     train_loss_d += loss_d.item()
+
+                    time4=time.time()
+                    logger.log_info(f"time 4-3 = {time4-time3} s")
                     optimizer_d.zero_grad()
                     loss_d.backward()
                     optimizer_d.step()
+                    time5=time.time()
+                    logger.log_info(f"time 5-4 = {time5-time4} s")
             message = '<epoch:{:d}, iter:{:d}, total_loss_g:{:.4f}, adv_g_loss:{:.4f}, feat_loss:{:.4f}, rec_loss:{:.4f}, commit_loss:{:.4f}, loss_d:{:.4f}, d_weight: {:.4f}>'.format(
                 epoch, k_iter,
                 total_loss_g.item(),
@@ -355,6 +384,8 @@ def train(args, soundstream, stft_disc, msd, mpd, train_loader, valid_loader,
                 feat_loss.item(),
                 rec_loss.item(),
                 commit_loss.item(), loss_d.item(), d_weight.item())
+            logger.log_info(message)
+            logger.log_info("")
             if k_iter % args.print_freq == 0:
                 logger.log_info(message)
         lr_scheduler_g.step()
