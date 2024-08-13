@@ -8,6 +8,8 @@ from academicodec.modules.seanet import SEANetEncoder
 from academicodec.quantization import ResidualVectorQuantizer
 from academicodec.quantization import SelfResidualVectorQuantizer
 
+from soundstream_net import Encoder
+from soundstream_net import Decoder
 
 # Generator
 class SoundStream(nn.Module):
@@ -21,19 +23,22 @@ class SoundStream(nn.Module):
                  normalize=False):
         super().__init__()
         self.hop_length = np.prod(ratios)  # 计算乘积
-        self.encoder = SEANetEncoder(
-            n_filters=n_filters, dimension=D, ratios=ratios)
+        # self.encoder = SEANetEncoder(
+        #     n_filters=n_filters, dimension=D, ratios=ratios)
+        self.encoder = Encoder(C=1, D=D)
+
         n_q = int(1000 * target_bandwidths[-1] //
                   (math.ceil(sample_rate / self.hop_length) * 10))
         self.frame_rate = math.ceil(sample_rate / np.prod(ratios))  # 75
         self.bits_per_codebook = int(math.log2(bins))
         self.target_bandwidths = target_bandwidths
-        # self.quantizer = ResidualVectorQuantizer(
-        #     dimension=D, n_q=n_q, bins=bins)
-        self.quantizer = SelfResidualVectorQuantizer(
+        self.quantizer = ResidualVectorQuantizer(
             dimension=D, n_q=n_q, bins=bins)
-        self.decoder = SEANetDecoder(
-            n_filters=n_filters, dimension=D, ratios=ratios)
+        # self.quantizer = SelfResidualVectorQuantizer(
+        #     dimension=D, n_q=n_q, bins=bins)
+        # self.decoder = SEANetDecoder(
+        #     n_filters=n_filters, dimension=D, ratios=ratios)
+        self.decoder = Decoder(C=1, D=D)
 
     def get_last_layer(self):
         return self.decoder.layers[-1].weight
