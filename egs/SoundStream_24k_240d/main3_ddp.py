@@ -258,10 +258,10 @@ def main_worker(local_rank, args):
                   device_ids=[args.local_rank],
                   find_unused_parameters=True)
 
-    # train_dataset = NSynthDataset(audio_dir=args.train_data_path)
-    # valid_dataset = NSynthDataset(audio_dir=args.valid_data_path)
-    train_dataset = JsonDataset(audio_dir=args.train_data_path)
-    valid_dataset = JsonDataset(audio_dir=args.valid_data_path)
+    train_dataset = NSynthDataset(audio_dir=args.train_data_path)
+    valid_dataset = NSynthDataset(audio_dir=args.valid_data_path)
+    # train_dataset = JsonDataset(audio_dir=args.train_data_path)
+    # valid_dataset = JsonDataset(audio_dir=args.valid_data_path)
     args.sr = train_dataset.sr
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(

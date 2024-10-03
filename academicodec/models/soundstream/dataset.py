@@ -15,7 +15,8 @@ class NSynthDataset(Dataset):
     def __init__(self, audio_dir):
         super().__init__()
         self.filenames = []
-        self.filenames.extend(glob.glob(audio_dir + "/*.wav"))
+        # self.filenames.extend(glob.glob(audio_dir + "/*.wav"))
+        self.filenames.extend(glob.glob(audio_dir + "/*.flac")) # For LibriSpeech, should use flac as suffix
         print(len(self.filenames))
         _, self.sr = torchaudio.load(self.filenames[0])
         self.max_len = 48000  # 48000, 3sec
