@@ -8,6 +8,7 @@ import torch
 import torchaudio
 from torch.utils.data import Dataset
 
+import logging
 
 class NSynthDataset(Dataset):
     """Dataset to load NSynth data."""
@@ -15,10 +16,12 @@ class NSynthDataset(Dataset):
     def __init__(self, audio_dir):
         super().__init__()
         self.filenames = []
+        logging.info(f"Extracting datasets from path '{audio_dir}'")
         # self.filenames.extend(glob.glob(audio_dir + "/*.wav"))
         self.filenames.extend(glob.glob(audio_dir + "/*.flac")) # For LibriSpeech, should use flac as suffix
-        print(len(self.filenames))
+        logging.info(f"Extract finished, file list size: {len(self.filenames)}")
         _, self.sr = torchaudio.load(self.filenames[0])
+        logging.info(f"Sampling rate: {self.sr}")
         self.max_len = 48000  # 48000, 3sec
 
     def __len__(self):

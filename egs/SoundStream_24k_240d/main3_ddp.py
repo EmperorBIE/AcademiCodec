@@ -4,6 +4,7 @@ import itertools
 import os
 import time
 import random
+import logging
 
 import torch
 import torch.distributed as dist
@@ -32,6 +33,12 @@ MASTER_PORT = int(MASTER_PORT)
 DIST_URL = 'tcp://%s:%s' % (MASTER_ADDR, MASTER_PORT)
 NUM_NODE = os.environ['HOST_NUM'] if 'HOST_NUM' in os.environ else 1
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(message)s',  # 只输出日志信息
+    filename='/home/users/ntu/ccdshyzh/AcademiCodec/logs/logs.log',  # 指定日志文件路径
+    filemode='w'  # 文件模式，'w' 表示覆盖，'a' 表示追加
+)
 
 def getModelSize(model):
     param_size = 0
@@ -47,7 +54,6 @@ def getModelSize(model):
     all_size = (param_size + buffer_size) / 1024 / 1024
     print('模型总大小为：{:.3f}MB'.format(all_size))
     return (param_size, param_sum, buffer_size, buffer_sum, all_size)
-
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -196,6 +202,7 @@ def get_input(x):
 
 
 def main():
+    logging.info("Starting...")
     args = get_args()
     if args.seed is not None or args.cudnn_deterministic:
         seed_everything(args.seed, args.cudnn_deterministic)
@@ -205,6 +212,7 @@ def main():
         assert args.num_node > 1
     args.ngpus_per_node = torch.cuda.device_count()
     args.world_size = args.ngpus_per_node * args.num_node  #
+    logging.info("Launching...")
     launch(
         main_worker,
         args.ngpus_per_node,
