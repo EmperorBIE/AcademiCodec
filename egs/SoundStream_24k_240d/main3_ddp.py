@@ -36,7 +36,7 @@ NUM_NODE = os.environ['HOST_NUM'] if 'HOST_NUM' in os.environ else 1
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(message)s',  # 只输出日志信息
-    filename='/home/users/ntu/ccdshyzh/AcademiCodec/logs/logs.log',  # 指定日志文件路径
+    filename='/home/users/ntu/ccdshyzh/AcademiCodec/egs/SoundStream_24k_240d/logs/logs.log',  # 指定日志文件路径
     filemode='w'  # 文件模式，'w' 表示覆盖，'a' 表示追加
 )
 
